@@ -161,11 +161,7 @@
             showCompleted = !showCompleted;
             const btn = document.getElementById('see-completed-btn');
             const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
-            // Count only non-Ethics completed assignments
-            const displayedCompleted = completed.filter(id => {
-                const assignment = allData.find(a => a.id === id);
-                return assignment && !assignment.courseName.toLowerCase().includes('ethics');
-            }).length;
+            const displayedCompleted = completed.length;
             btn.textContent = `${showCompleted ? 'Hide' : 'Show'} Completed (${displayedCompleted})`;
             renderList();
         }
@@ -260,8 +256,7 @@
 
         function renderFilters() {
             const container = document.getElementById('filter-container-sidebar');
-            // Filter out Ethics course
-            const courses = [...new Set(allData.map(a => a.courseName).filter(name => !name.toLowerCase().includes('ethics')))];
+            const courses = [...new Set(allData.map(a => a.courseName))];
             container.innerHTML = '';
             courses.forEach(course => {
                 const btn = document.createElement('button');
@@ -271,12 +266,8 @@
                 container.appendChild(btn);
             });
             
-            // Update completed count - only non-Ethics completed assignments
             const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
-            const displayedCompleted = completed.filter(id => {
-                const assignment = allData.find(a => a.id === id);
-                return assignment && !assignment.courseName.toLowerCase().includes('ethics');
-            }).length;
+            const displayedCompleted = completed.length;
             document.getElementById('see-completed-btn').textContent = `${showCompleted ? 'Hide' : 'Show'} Completed (${displayedCompleted})`;
         }
 
@@ -301,16 +292,9 @@
             const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
             
             const now = new Date();
-            // Filter out Ethics course
             let filtered = allData.filter(a => {
                 const isCompleted = completed.includes(a.id);
-                const isEthics = a.courseName.toLowerCase().includes('ethics');
-                
-                if (showCompleted) {
-                    return isCompleted && !isEthics; // Show only completed assignments
-                } else {
-                    return !isCompleted && !isEthics; // Show only non-completed, non-ethics
-                }
+                return showCompleted ? isCompleted : !isCompleted;
             });
             
             if (searchTerm) filtered = filtered.filter(a => a.name.toLowerCase().includes(searchTerm));
@@ -403,15 +387,11 @@
             const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
             const now = new Date();
             
-            // Count only what would actually display in "Show Completed" view
-            // This includes: non-Ethics, completed, and respects active filters
+            // Count what would display in "Show Completed" view (completed + filters)
             let displayedCompleted = allData.filter(a => {
                 const isCompleted = completed.includes(a.id);
-                const isEthics = a.courseName.toLowerCase().includes('ethics');
-                
-                if (!isCompleted || isEthics) return false;
+                if (!isCompleted) return false;
                 if (activeFilters.size > 0 && !activeFilters.has(a.courseName)) return false;
-                
                 return true;
             }).length;
             
