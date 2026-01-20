@@ -161,7 +161,11 @@
             showCompleted = !showCompleted;
             const btn = document.getElementById('see-completed-btn');
             const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
-            const displayedCompleted = completed.length;
+            // Count only non-Ethics completed assignments
+            const displayedCompleted = completed.filter(id => {
+                const assignment = allData.find(a => a.id === id);
+                return assignment && !assignment.courseName.toLowerCase().includes('ethics');
+            }).length;
             btn.textContent = `${showCompleted ? 'Hide' : 'Show'} Completed (${displayedCompleted})`;
             renderList();
         }
@@ -393,21 +397,24 @@
             
             // Count what would display in "Show Completed" view (completed + filters)
             let displayedCompleted = allData.filter(a => {
+                const isEthics = a.courseName.toLowerCase().includes('ethics');
                 const isCompleted = completed.includes(a.id);
-                if (!isCompleted) return false;
+                if (isEthics || !isCompleted) return false;
                 if (activeFilters.size > 0 && !activeFilters.has(a.courseName)) return false;
                 return true;
             }).length;
             
             const urgent = allData.filter(a => {
-                if (!a.due_at || completed.includes(a.id)) return false;
+                const isEthics = a.courseName.toLowerCase().includes('ethics');
+                if (isEthics || !a.due_at || completed.includes(a.id)) return false;
                 const due = new Date(a.due_at);
                 const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
                 return diffDays <= 3 && diffDays > 0;
             }).length;
             
             const pastDue = allData.filter(a => {
-                if (!a.due_at || completed.includes(a.id)) return false;
+                const isEthics = a.courseName.toLowerCase().includes('ethics');
+                if (isEthics || !a.due_at || completed.includes(a.id)) return false;
                 return new Date(a.due_at) < now;
             }).length;
             
