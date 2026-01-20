@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Priority Board</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Sidebar Menu -->
+    <div id="sidebar" class="fixed top-0 left-0 h-full w-80 bg-slate-800 text-white p-6 transform -translate-x-full transition-transform duration-300 z-50">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-xl font-bold">Menu</h2>
+            <button onclick="toggleSidebar()" class="text-white hover:text-slate-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Search in Menu -->
+        <div class="mb-6">
+            <label class="text-xs font-bold text-slate-300 uppercase block mb-2">Search</label>
+            <input type="text" id="searchBar" oninput="renderList()" placeholder="Search assignments..." 
+                class="w-full p-3 rounded-lg border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+        </div>
+
+        <!-- Filter in Menu -->
+        <div class="mb-6">
+            <label class="text-xs font-bold text-slate-300 uppercase block mb-3">Filter by Course</label>
+            <div id="filter-container-sidebar" class="flex flex-col gap-2"></div>
+        </div>
+
+        <!-- See Completed Toggle -->
+        <div class="space-y-2">
+            <label class="text-xs font-bold text-slate-300 uppercase block mb-3">Completed Assignments</label>
+            <button onclick="toggleShowCompleted()" id="see-completed-btn" class="w-full p-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold transition-colors">
+                Show Completed (0)
+            </button>
+            <button onclick="clearCompletedData()" class="w-full p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-colors">
+                Clear All
+            </button>
+        </div>
+    </div>
+
+    <!-- Overlay -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40" onclick="toggleSidebar()"></div>
+
+    <!-- Full-width Header at Top -->
+    <div class="w-full bg-slate-800">
+        <div class="max-w-2xl mx-auto px-6 py-6 flex items-center justify-between">
+            <div class="flex items-center">
+                <button onclick="toggleSidebar()" class="text-white hover:text-slate-200 -ml-6 mr-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <div>
+                    <h1 class="text-4xl font-black text-white tracking-tight italic uppercase">EightBall</h1>
+                    <p class="text-slate-300 font-medium tracking-tight">Stay Ahead of the Break.</p>
+                </div>
+                <svg class="h-16 w-16 ml-2" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="45" fill="#1e293b" stroke="#94a3b8" stroke-width="2"/>
+                    <text x="50" y="55" text-anchor="middle" font-size="40" font-weight="bold" fill="#f1f5f9">8</text>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-2xl mx-auto px-6 pt-6">
+        <!-- Summary Dashboard -->
+        <div class="grid grid-cols-3 gap-4 mb-10">
+            <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <p class="text-xs font-bold text-slate-400 uppercase">Urgent</p>
+                <p class="text-2xl font-black text-amber-600" id="urgent-count">0</p>
+            </div>
+            <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <p class="text-xs font-bold text-slate-400 uppercase">Past Due</p>
+                <p class="text-2xl font-black text-rose-600" id="past-due-count">0</p>
+            </div>
+            <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <p class="text-xs font-bold text-slate-400 uppercase">Completed</p>
+                <p class="text-2xl font-black text-teal-600" id="completed-count">0</p>
+            </div>
+        </div>
+
+        <div id="loading" class="text-center py-20 hidden">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+        </div>
+
+        <!-- Past Due Section -->
+        <div id="past-due-section" class="mb-10 hidden">
+            <button onclick="togglePastDueCollapse()" class="w-full flex items-center justify-between mb-4 group">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span class="text-3xl"></span> Past Due
+                </h2>
+                <svg id="past-due-toggle" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-800 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+            </button>
+            <ul id="past-due-list" class="space-y-4"></ul>
+        </div>
+
+        <!-- Urgent Section -->
+        <div id="urgent-section" class="mb-10 hidden">
+            <button onclick="toggleUrgentCollapse()" class="w-full flex items-center justify-between mb-4 group">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span class="text-3xl"></span> Urgent (< 3 Days)
+                </h2>
+                <svg id="urgent-toggle" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-800 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+            </button>
+            <ul id="urgent-list" class="space-y-4"></ul>
+        </div>
+
+        <!-- Upcoming Section -->
+        <div id="upcoming-section" class="mb-10 hidden">
+            <button onclick="toggleUpcomingCollapse()" class="w-full flex items-center justify-between mb-4 group">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span class="text-3xl"></span> Upcoming
+                </h2>
+                <svg id="upcoming-toggle" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-800 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+            </button>
+            <ul id="upcoming-list" class="space-y-4"></ul>
+        </div>
+
+        <!-- No Due Date Section -->
+        <div id="no-date-section" class="mb-10 hidden">
+            <button onclick="toggleNoDateCollapse()" class="w-full flex items-center justify-between mb-4 group">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span class="text-3xl"></span> No Due Date Yet
+                </h2>
+                <svg id="no-date-toggle" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-800 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+            </button>
+            <ul id="no-date-list" class="space-y-4"></ul>
+        </div>
+    </div>
+
+    <script>
+        const API_TOKEN = '7407~YHY2DTA7GtKKZBeBE3UB9UM8Y6rtMeCARvhQ4CzeuAwm9u4wW6ARJREWQNFmVBHy';
+        // Direct API URL without proxy
+        const BASE_URL = 'http://localhost:8001/api';
+        
+        let allData = [];
+        let activeFilters = new Set();
+        let showCompleted = false;
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        function toggleShowCompleted() {
+            showCompleted = !showCompleted;
+            const btn = document.getElementById('see-completed-btn');
+            const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
+            // Count only non-Ethics completed assignments
+            const displayedCompleted = completed.filter(id => {
+                const assignment = allData.find(a => a.id === id);
+                return assignment && !assignment.courseName.toLowerCase().includes('ethics');
+            }).length;
+            btn.textContent = `${showCompleted ? 'Hide' : 'Show'} Completed (${displayedCompleted})`;
+            renderList();
+        }
+
+        function clearCompletedData() {
+            if (confirm('Are you sure you want to clear all completed assignments? This cannot be undone.')) {
+                localStorage.removeItem('canvas_completed');
+                showCompleted = false;
+                const btn = document.getElementById('see-completed-btn');
+                btn.textContent = 'Show Completed (0)';
+                renderFilters();
+                renderList();
+            }
+        }
+
+        async function init() {
+            document.getElementById('loading').classList.remove('hidden');
+            try {
+                // Log API responses to debug potential issues
+                console.log('Fetching courses...');
+                const coursesRes = await fetch(`${BASE_URL}/courses`, {
+                    mode: 'cors'
+                });
+                console.log('Courses response:', coursesRes);
+                const courses = await coursesRes.json();
+                console.log('Courses data:', courses);
+
+                let assignmentsList = [];
+                for (const course of courses) {
+                    if (course.name) {
+                        console.log(`Fetching assignments for course: ${course.name} (ID: ${course.id})`);
+                        const res = await fetch(`${BASE_URL}/courses/${course.id}/assignments`, {
+                            mode: 'cors'
+                        });
+                        console.log(`Assignments response for course ${course.name}:`, res);
+                        const assignments = await res.json();
+                        console.log(`Assignments data for course ${course.name}:`, assignments);
+                        assignmentsList.push(...assignments.map(a => ({...a, courseName: course.name})));
+                    }
+                }
+                console.log('All assignments:', assignmentsList);
+                allData = assignmentsList;
+                
+                // Auto-mark submitted assignments
+                const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
+                const newSubmitted = assignmentsList
+                    .filter(a => a.submitted === true && !completed.includes(a.id))
+                    .map(a => a.id);
+                
+                if (newSubmitted.length > 0) {
+                    const updatedCompleted = [...new Set([...completed, ...newSubmitted])];
+                    localStorage.setItem('canvas_completed', JSON.stringify(updatedCompleted));
+                    console.log(`Auto-marked ${newSubmitted.length} submitted assignments as completed`);
+                }
+                
+                renderFilters();
+                renderList();
+            } catch (err) {
+                console.error(err);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function getTimeStatus(dueDate) {
+            if (!dueDate) return { countdown: "No Date", fullDate: "Undated", color: "bg-slate-100 text-slate-600 border-slate-200" };
+            
+            const now = new Date();
+            const due = new Date(dueDate);
+            const diffTime = due - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            const fullDate = due.toLocaleDateString('en-US', options);
+
+            let countdown = `${diffDays} days left`;
+            let color = "bg-teal-50 text-teal-700 border-teal-200";
+
+            if (diffTime < 0) {
+                countdown = "Past Due";
+                color = "bg-rose-100 text-rose-700 border-rose-200";
+            } else if (diffDays <= 3) {
+                countdown = "Urgent: < 3 Days";
+                color = "bg-amber-50 text-amber-700 border-amber-200";
+            } else if (diffDays <= 7) {
+                countdown = "Upcoming: < 7 Days";
+                color = "bg-yellow-50 text-yellow-700 border-yellow-200";
+            }
+
+            return { countdown, fullDate, color };
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('filter-container-sidebar');
+            // Filter out Ethics course
+            const courses = [...new Set(allData.map(a => a.courseName).filter(name => !name.toLowerCase().includes('ethics')))];
+            container.innerHTML = '';
+            courses.forEach(course => {
+                const btn = document.createElement('button');
+                btn.textContent = course;
+                btn.className = `px-3 py-2 rounded-lg text-sm font-bold transition-all border ${activeFilters.has(course) ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600'}`;
+                btn.onclick = () => toggleFilter(course);
+                container.appendChild(btn);
+            });
+            
+            // Update completed count - only non-Ethics completed assignments
+            const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
+            const displayedCompleted = completed.filter(id => {
+                const assignment = allData.find(a => a.id === id);
+                return assignment && !assignment.courseName.toLowerCase().includes('ethics');
+            }).length;
+            document.getElementById('see-completed-btn').textContent = `${showCompleted ? 'Hide' : 'Show'} Completed (${displayedCompleted})`;
+        }
+
+        function toggleFilter(course) {
+            if (activeFilters.has(course)) activeFilters.delete(course);
+            else activeFilters.add(course);
+            renderFilters();
+            renderList();
+        }
+
+        function renderList() {
+            const list = document.getElementById('checklist');
+            const pastDueList = document.getElementById('past-due-list');
+            const pastDueSection = document.getElementById('past-due-section');
+            const urgentList = document.getElementById('urgent-list');
+            const urgentSection = document.getElementById('urgent-section');
+            const upcomingList = document.getElementById('upcoming-list');
+            const upcomingSection = document.getElementById('upcoming-section');
+            const noDateList = document.getElementById('no-date-list');
+            const noDateSection = document.getElementById('no-date-section');
+            const searchTerm = document.getElementById('searchBar').value.toLowerCase();
+            const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
+            
+            const now = new Date();
+            // Filter out Ethics course
+            let filtered = allData.filter(a => {
+                const isCompleted = completed.includes(a.id);
+                const isEthics = a.courseName.toLowerCase().includes('ethics');
+                
+                if (showCompleted) {
+                    return isCompleted && !isEthics; // Show only completed assignments
+                } else {
+                    return !isCompleted && !isEthics; // Show only non-completed, non-ethics
+                }
+            });
+            
+            if (searchTerm) filtered = filtered.filter(a => a.name.toLowerCase().includes(searchTerm));
+            if (activeFilters.size > 0) filtered = filtered.filter(a => activeFilters.has(a.courseName));
+
+            // Separate into categories
+            const pastDue = filtered.filter(a => a.due_at && new Date(a.due_at) < now);
+            const urgent = filtered.filter(a => {
+                if (!a.due_at) return false;
+                const due = new Date(a.due_at);
+                if (due < now) return false; // Already past due
+                const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+                return diffDays <= 3 && diffDays > 0;
+            });
+            const upcoming = filtered.filter(a => {
+                if (!a.due_at) return false;
+                const due = new Date(a.due_at);
+                if (due < now) return false; // Already past due
+                const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+                return diffDays > 3;
+            });
+            const noDueDate = filtered.filter(a => !a.due_at);
+            
+            upcoming.sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+
+            // Render past due section
+            if (pastDue.length > 0) {
+                pastDueSection.classList.remove('hidden');
+                pastDueList.innerHTML = pastDue.map(a => renderAssignmentItem(a)).join('');
+            } else {
+                pastDueSection.classList.add('hidden');
+            }
+
+            // Render urgent section
+            if (urgent.length > 0) {
+                urgentSection.classList.remove('hidden');
+                urgentList.innerHTML = urgent.map(a => renderAssignmentItem(a)).join('');
+            } else {
+                urgentSection.classList.add('hidden');
+            }
+
+            // Render upcoming section
+            if (upcoming.length > 0) {
+                upcomingSection.classList.remove('hidden');
+                upcomingList.innerHTML = upcoming.map(a => renderAssignmentItem(a)).join('');
+            } else {
+                upcomingSection.classList.add('hidden');
+            }
+
+            // Render no due date section
+            if (noDueDate.length > 0) {
+                noDateSection.classList.remove('hidden');
+                noDateList.innerHTML = noDueDate.map(a => renderAssignmentItem(a)).join('');
+            } else {
+                noDateSection.classList.add('hidden');
+            }
+            
+            // Update summary stats
+            updateSummaryStats();
+        }
+
+        function renderAssignmentItem(a) {
+            const status = getTimeStatus(a.due_at);
+            const isSubmitted = a.submitted === true;
+            const isPastDue = a.due_at && new Date(a.due_at) < new Date();
+            const submissionBadge = isSubmitted ? '<span class="ml-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-teal-100 text-teal-700 border border-teal-200 shadow-sm">✓ Submitted</span>' : '';
+            
+            return `
+            <li class="bg-white border border-slate-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex justify-between items-center group animate-in fade-in slide-in-from-bottom-2 duration-300 ${isSubmitted ? 'opacity-70' : ''}">
+                <div class="space-y-1 flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${status.color} border shadow-sm">
+                            ${status.countdown}
+                        </span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${a.courseName}</span>
+                        ${submissionBadge}
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 leading-tight">${a.name}</h3>
+                    <p class="text-xs font-medium text-slate-500">Due: ${status.fullDate}</p>
+                </div>
+                <button onclick="markDone(${a.id})" class="h-12 w-12 rounded-full border-2 flex-shrink-0 ml-4 ${isSubmitted ? 'border-teal-400 text-teal-500 bg-teal-50' : 'border-slate-200 text-slate-300 hover:border-teal-400 hover:text-teal-500 hover:bg-teal-50'} flex items-center justify-center transition-all shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                </button>
+            </li>`;
+        }
+
+        function updateSummaryStats() {
+            const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
+            const now = new Date();
+            
+            // Count only what would actually display in "Show Completed" view
+            // This includes: non-Ethics, completed, and respects active filters
+            let displayedCompleted = allData.filter(a => {
+                const isCompleted = completed.includes(a.id);
+                const isEthics = a.courseName.toLowerCase().includes('ethics');
+                
+                if (!isCompleted || isEthics) return false;
+                if (activeFilters.size > 0 && !activeFilters.has(a.courseName)) return false;
+                
+                return true;
+            }).length;
+            
+            const urgent = allData.filter(a => {
+                if (!a.due_at || completed.includes(a.id)) return false;
+                const due = new Date(a.due_at);
+                const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+                return diffDays <= 3 && diffDays > 0;
+            }).length;
+            
+            const pastDue = allData.filter(a => {
+                if (!a.due_at || completed.includes(a.id)) return false;
+                return new Date(a.due_at) < now;
+            }).length;
+            
+            document.getElementById('urgent-count').textContent = urgent;
+            document.getElementById('past-due-count').textContent = pastDue;
+            document.getElementById('completed-count').textContent = displayedCompleted;
+        }
+
+        function togglePastDueCollapse() {
+            const list = document.getElementById('past-due-list');
+            const toggle = document.getElementById('past-due-toggle');
+            list.classList.toggle('hidden');
+            toggle.classList.toggle('rotate-180');
+        }
+
+        function toggleUrgentCollapse() {
+            const list = document.getElementById('urgent-list');
+            const toggle = document.getElementById('urgent-toggle');
+            list.classList.toggle('hidden');
+            toggle.classList.toggle('rotate-180');
+        }
+
+        function toggleUpcomingCollapse() {
+            const list = document.getElementById('upcoming-list');
+            const toggle = document.getElementById('upcoming-toggle');
+            list.classList.toggle('hidden');
+            toggle.classList.toggle('rotate-180');
+        }
+
+        function toggleNoDateCollapse() {
+            const list = document.getElementById('no-date-list');
+            const toggle = document.getElementById('no-date-toggle');
+            list.classList.toggle('hidden');
+            toggle.classList.toggle('rotate-180');
+        }
+
+        function markDone(id) {
+            const completed = JSON.parse(localStorage.getItem('canvas_completed') || "[]");
+            const index = completed.indexOf(id);
+            
+            if (index > -1) {
+                // Already completed, so remove it
+                completed.splice(index, 1);
+            } else {
+                // Not completed, so add it
+                completed.push(id);
+            }
+            
+            localStorage.setItem('canvas_completed', JSON.stringify(completed));
+            renderList();
+            renderFilters(); // Update the completed count
+        }
+
+        init();
+        
+        // Auto-refresh assignments every 5 minutes
+        setInterval(init, 5 * 60 * 1000);
+    </script>
+
+    <!-- Fixed Footer -->
+    <div class="fixed bottom-0 left-0 w-full bg-slate-800 py-2">
+        <div class="max-w-2xl mx-auto px-6 text-center">
+            <p class="text-xs text-slate-400">© 2026 EightBall</p>
+        </div>
+    </div>
+</body>
+</html>
